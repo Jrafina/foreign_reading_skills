@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 渲染中间产物
+*.pv*.png
+_build/
+.build/
+
+# 语料库与产物不入库（体积大，且可自行重建）
+corpus/
+output/

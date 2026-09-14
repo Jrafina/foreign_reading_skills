@@ -1,0 +1,122 @@
+/* 外刊精读讲义版式 · 由 render_pdf.py 注入到临时 HTML
+   想改讲义外观（颜色/字体/间距/分页），改这个文件即可，不必重写内容。 */
+
+:root{
+  --red:#E3120B; --ink:#1b1b1b; --sub:#4a4a4a; --muted:#7a7a7a;
+  --line:#e3e0dc; --soft:#faf8f5;
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+  --serif:"Times New Roman",Georgia,"Songti SC",serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:var(--sans);color:var(--ink);font-size:11px;line-height:1.75;background:#fff;
+     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.page{max-width:830px;margin:0 auto;padding:0 6mm 10mm;}
+
+/* ---------- 报头 ---------- */
+.masthead{border-top:4px solid var(--red);padding-top:10px;margin-bottom:12px;}
+.masthead .kicker{font-family:var(--serif);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.masthead h1{font-family:var(--serif);font-size:28px;line-height:1.15;margin:0 0 2px;letter-spacing:-.01em;}
+.masthead .deck{font-family:var(--serif);font-size:12.5px;color:var(--sub);margin:2px 0 0;}
+.masthead .meta{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 0;margin-top:8px;
+                font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px;}
+.masthead .meta b{color:var(--ink);font-weight:600;}
+
+/* ---------- 章节 ---------- */
+h2.sec{font-size:14px;margin:20px 0 9px;padding-left:10px;border-left:4px solid var(--red);line-height:1.3;
+       letter-spacing:.02em;break-after:avoid;page-break-after:avoid;}
+h2.sec .no{color:var(--red);font-family:var(--serif);margin-right:6px;}
+.hint{font-size:10px;color:var(--muted);margin:-3px 0 9px;}
+
+/* ---------- 事实卡 ---------- */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.fact{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--soft);}
+.fact .k{font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
+.fact .v{font-size:11.5px;font-weight:600;margin-top:2px;line-height:1.4;}
+
+/* ---------- 提示块 ---------- */
+.callout{border:1px solid var(--line);border-left:4px solid var(--red);background:var(--soft);
+         border-radius:0 6px 6px 0;padding:10px 12px;margin:10px 0;break-inside:avoid;}
+.callout.info{border-left-color:#2c5f8a;}
+.callout h4{margin:0 0 4px;font-size:11.5px;}
+.callout p{margin:0;font-size:10.5px;color:var(--sub);}
+.callout ul{margin:4px 0 0;padding-left:16px;font-size:10.5px;color:var(--sub);}
+.callout li{margin:2px 0;}
+
+/* ---------- 逐段精读 ---------- */
+.para{break-inside:avoid;margin-bottom:11px;padding-bottom:9px;border-bottom:1px dashed var(--line);}
+.para:last-child{border-bottom:none;}
+.para .num{display:inline-block;font-family:var(--serif);font-size:10px;font-weight:700;color:#fff;
+           background:var(--red);border-radius:3px;padding:0 5px;margin-right:6px;vertical-align:1px;}
+.en{font-family:var(--serif);font-size:12px;line-height:1.72;color:#111;text-align:justify;}
+.en mark{background:#fdece9;color:#a8120c;padding:0 1px;border-radius:2px;font-weight:600;}
+.zh{font-size:10.5px;color:var(--sub);line-height:1.85;margin-top:5px;text-align:justify;}
+.zh b{color:var(--red);font-weight:600;}
+/* 原文小标题（如 “Don't overdo it”）：独立成行，与上下正文分开 */
+.subhead{display:block;font-family:var(--serif);font-weight:700;font-size:12px;color:#111;
+         margin:2px 0 5px;line-height:1.4;}
+.zh .subhead{font-family:inherit;font-size:10.5px;color:var(--ink);margin:7px 0 3px;}
+
+/* ---------- 词汇表 ---------- */
+table{width:100%;border-collapse:collapse;font-size:9.5px;}
+thead th{background:var(--red);color:#fff;font-weight:600;text-align:left;padding:6px 7px;font-size:9.5px;letter-spacing:.04em;}
+tbody td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5;}
+tbody tr:nth-child(even){background:var(--soft);}
+tbody tr{break-inside:avoid;}
+.w{font-family:var(--serif);font-weight:700;font-size:10.5px;}
+.ipa{font-family:var(--serif);color:var(--muted);font-size:9px;display:block;}
+.pos{color:var(--red);font-style:italic;font-family:var(--serif);font-size:9px;}
+.cite{font-family:var(--serif);color:#555;font-size:9px;}
+.cite em{color:#a8120c;font-style:normal;font-weight:600;}
+.eg{font-family:var(--serif);font-size:9.5px;line-height:1.55;color:#222;}
+.eg em{color:#a8120c;font-style:normal;font-weight:700;}
+.badge{display:inline-block;font-size:8px;font-weight:600;border-radius:3px;padding:0 5px;margin-right:5px;
+       vertical-align:1.5px;background:#fdece9;color:#a8120c;font-family:var(--serif);white-space:nowrap;}
+.badge.own{background:#eef3f8;color:#2c5f8a;}
+
+/* ---------- 长难句 ---------- */
+.sent{break-inside:avoid;border:1px solid var(--line);border-radius:7px;padding:10px 12px;margin-bottom:10px;}
+.sent .idx{font-size:9px;color:#fff;background:var(--ink);border-radius:3px;padding:1px 6px;font-family:var(--serif);}
+.sent .src{font-family:var(--serif);font-size:11.5px;line-height:1.7;margin:6px 0 8px;color:#111;text-align:justify;}
+.sent .src u{text-decoration:none;border-bottom:2px solid #f2c9c6;background:#fdece9;padding:0 1px;}
+.tag{display:inline-block;font-size:8.5px;font-weight:600;border-radius:3px;padding:1px 6px;margin:0 4px 4px 0;}
+.t-main{background:#111;color:#fff;} .t-cl{background:#fdece9;color:#a8120c;}
+.t-mod{background:#eef3f8;color:#2c5f8a;} .t-obj{background:#f3f0ea;color:#6b6146;}
+.analysis{font-size:10px;color:var(--sub);line-height:1.8;}
+.analysis ul{margin:2px 0 6px;padding-left:16px;}
+.analysis li{margin:2px 0;}
+.trans{font-size:10.5px;color:#222;background:var(--soft);border-radius:5px;padding:6px 9px;line-height:1.8;}
+.trans b{color:var(--red);}
+
+/* ---------- 亮点表达 ---------- */
+.phr{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.phr .it{border:1px solid var(--line);border-radius:6px;padding:7px 10px;break-inside:avoid;}
+.phr .en2{font-family:var(--serif);font-weight:700;font-size:10.5px;color:#111;}
+.phr .cn2{font-size:10px;color:var(--sub);line-height:1.65;margin-top:2px;}
+
+/* ---------- 自测 ---------- */
+.quiz{counter-reset:q;font-size:10.5px;color:var(--sub);}
+.quiz .q{counter-increment:q;margin:5px 0;padding-left:22px;position:relative;break-inside:avoid;}
+.quiz .q::before{content:counter(q);position:absolute;left:0;top:0;font-family:var(--serif);font-weight:700;color:var(--red);}
+.quiz .q span{color:#a8120c;font-weight:600;}
+
+footer{margin-top:16px;border-top:1px solid var(--line);padding-top:7px;font-size:9px;color:var(--muted);text-align:center;}
+
+.page-break{page-break-before:always;}
+
+@page{size:A4;margin:13mm 12mm;}
+@media print{
+  body{font-size:10.5px;}
+  .page{max-width:none;padding:0;}
+  h2.sec{margin-top:12px;margin-bottom:7px;}
+  .sent{margin-bottom:4px;padding:4px 9px;}
+  .sent .src{margin:4px 0 5px;}
+  .analysis{line-height:1.66;}
+  .analysis li{margin:1px 0;}
+  .trans{padding:5px 8px;line-height:1.72;}
+  .para{margin-bottom:6px;padding-bottom:5px;}
+  tbody td{padding:4px 7px;}
+  .phr{gap:6px;}
+  .quiz .q{margin:4px 0;}
+  footer{margin-top:12px;break-inside:avoid;page-break-inside:avoid;}
+}
