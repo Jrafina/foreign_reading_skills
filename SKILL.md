@@ -66,6 +66,7 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 "$PY" assets/build_kaoyan_corpus.py      # 下载到 corpus/pdf，抽文本到 corpus/text/<年>_<卷>.txt
 ```
 - 从 `raw.githubusercontent.com` 拉取**极易被重置连接**（`RemoteDisconnected` / `SSLEOFError`）；**失败的直接重跑**，已有 txt 会自动跳过。
+- 语料库默认建在**当前工作目录**下的 `corpus/`；从别处调用时用环境变量指定：建库 `KAOYAN_CORPUS`、检索 `KAOYAN_CORPUS_TXT`。目录不存在时脚本会直接报错提示，不会静默空转。
 - 这些 PDF 是 **OCR 扫描版**，有明显错字（`unanimous`→`unammous`、`California`→`Califoria`）。**引用前必须人工校订**，含错字的句子不用。
 
 **② 检索**（`assets/search_kaoyan_corpus.py`）
