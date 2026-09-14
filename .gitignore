@@ -9,6 +9,11 @@ venv/
 _build/
 .build/
 
-# 语料库与产物不入库（体积大，且可自行重建）
-corpus/
+# 讲义产物不入库（内容源在 src/，可随时重渲染）
 output/
+
+# 真题语料库（corpus/）**随仓库分发**，clone 下来即可直接检索，因此不忽略。
+# 仅排除下载残留与检索输出：
+corpus/.tmp/
+corpus/*.part
+corpus/hits*.txt

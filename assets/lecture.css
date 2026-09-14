@@ -4,8 +4,14 @@
 :root{
   --red:#E3120B; --ink:#1b1b1b; --sub:#4a4a4a; --muted:#7a7a7a;
   --line:#e3e0dc; --soft:#faf8f5;
-  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
-  --serif:"Times New Roman",Georgia,"Songti SC",serif;
+  /* 字体栈跨平台：Windows / macOS 用系统自带中文字体，
+     Linux 用 fonts-noto-cjk 提供的 Noto，再兜底文泉驿；
+     下方英文衬线用 Liberation Serif（Times New Roman 的度量兼容替代）。 */
+  --sans:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",
+         "Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","WenQuanYi Micro Hei",
+         sans-serif;
+  --serif:"Times New Roman","Liberation Serif","Nimbus Roman",Georgia,
+          "Songti SC","Noto Serif CJK SC","Noto Serif SC",serif;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}

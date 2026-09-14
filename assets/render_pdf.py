@@ -44,6 +44,7 @@
     ::: phrases    英文 :: 中文
     ::: quiz       题干 | 答案（答案会加高亮）
 """
+import glob
 import os
 import re
 import shutil
@@ -55,20 +56,126 @@ import urllib.parse
 HERE = os.path.dirname(os.path.abspath(__file__))
 CSS_PATH = os.path.join(HERE, "lecture.css")
 
-EDGE_CANDIDATES = [
+# 显式指定浏览器可执行文件（任何平台都优先用它）
+BROWSER_ENV = "LECTURE_BROWSER"
+
+# 各平台浏览器的常见安装位置。Chromium 系（Chrome / Edge / Chromium）
+# 的 headless 打印参数完全一致，所以哪个存在就用哪个。
+BROWSER_PATHS = [
+    # Windows
     r"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
     r"C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+    r"C:/Program Files/Google/Chrome/Application/chrome.exe",
+    r"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    # macOS
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    # Linux
+    "/usr/bin/chromium", "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+    "/usr/bin/microsoft-edge", "/usr/bin/microsoft-edge-stable",
+    "/snap/bin/chromium", "/opt/google/chrome/chrome",
 ]
 
+# PATH 里可以直接找到的命令名
+BROWSER_CMDS = [
+    "msedge", "microsoft-edge", "microsoft-edge-stable",
+    "google-chrome", "google-chrome-stable", "chrome",
+    "chromium", "chromium-browser",
+]
 
-def find_edge():
-    for p in EDGE_CANDIDATES:
+LINUX_HINT = """\
+找不到 Chrome / Chromium / Edge，无法导出 PDF。按系统任选一种装法：
+
+  Debian 12
+    sudo apt update && sudo apt install -y chromium fonts-noto-cjk
+    # 若 apt 源里没有 chromium，改用 Playwright 自带版（见下）
+
+  Ubuntu 22.04
+    sudo apt update && sudo apt install -y fonts-noto-cjk
+    pip install playwright && playwright install --with-deps chromium
+    # 注：Ubuntu 的 chromium-browser 是 snap 包，在容器/无 snapd 的环境里装不上，
+    #     所以推荐走 Playwright（不依赖发行版打包，路径固定可预测）
+
+  Debian 12 / Ubuntu 22.04 通用（不依赖系统包）
+    pip install playwright && playwright install --with-deps chromium
+
+中文字体是必需的：不装 fonts-noto-cjk，讲义里的中文会渲染成方框（tofu）。
+也可以直接指定浏览器：export {}=/path/to/chrome""".format(BROWSER_ENV)
+
+
+def _playwright_browsers():
+    """Playwright 下载的 Chromium —— Linux 上最省事、版本最可控的来源。"""
+    roots = [
+        os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or "",
+        os.path.expanduser("~/.cache/ms-playwright"),
+        "/ms-playwright",
+    ]
+    patterns = [
+        "chromium-*/chrome-linux/chrome",
+        "chromium_headless_shell-*/chrome-linux/headless_shell",
+        "chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+    ]
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        for pat in patterns:
+            # 版本号大的通常更新，优先用
+            for hit in sorted(glob.glob(os.path.join(root, pat)), reverse=True):
+                if os.path.exists(hit):
+                    yield hit
+
+
+def find_browser():
+    env = os.environ.get(BROWSER_ENV)
+    if env:
+        if os.path.exists(env):
+            return env
+        raise SystemExit("环境变量 {} 指向的文件不存在：{}".format(BROWSER_ENV, env))
+    for p in BROWSER_PATHS:
         if os.path.exists(p):
             return p
-    found = shutil.which("msedge") or shutil.which("chrome")
-    if found:
-        return found
-    raise SystemExit("找不到 Edge/Chrome，无法导出 PDF")
+    for c in BROWSER_CMDS:
+        found = shutil.which(c)
+        if found:
+            return found
+    for p in _playwright_browsers():
+        return p
+    raise SystemExit(LINUX_HINT)
+
+
+def headless_variants(browser):
+    """返回可依次尝试的参数组。
+
+    Chromium 112+ 用 `--headless=new`，更老的版本只认 `--headless`；
+    Playwright 的 headless_shell 本身就是无头程序，不需要该参数。
+    """
+    if "headless_shell" in os.path.basename(browser):
+        return [[]]
+    return [["--headless=new"], ["--headless"]]
+
+
+def run_browser(browser, url, tmp_pdf):
+    """调用浏览器把 HTML 打成 PDF，返回最后一次尝试的进程对象。"""
+    flags = [
+        "--disable-gpu",
+        "--no-pdf-header-footer",      # Chrome 111+ 不打印页眉页脚
+        "--print-to-pdf-no-header",    # 老版本的同义参数，新版会忽略
+        "--disable-dev-shm-usage",     # 容器里 /dev/shm 往往很小，避免崩
+        "--print-to-pdf=" + tmp_pdf,
+    ]
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        flags.insert(0, "--no-sandbox")   # Linux 上以 root 运行必须加
+    proc = None
+    for extra in headless_variants(browser):
+        if os.path.exists(tmp_pdf):
+            os.remove(tmp_pdf)
+        cmd = [browser] + extra + flags + [url]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if os.path.exists(tmp_pdf) and os.path.getsize(tmp_pdf) > 0:
+            return proc
+    return proc
 
 
 def bold(text):
@@ -293,14 +400,13 @@ def main():
     with open(tmp_html, "w", encoding="utf-8") as f:
         f.write(build_html(front, render_body(blocks)))
 
-    edge = find_edge()
+    browser = find_browser()
     # Windows 路径必须先转成正斜杠，否则反斜杠会被编码成 %5C 导致 ERR_INVALID_URL
     url = "file:///" + urllib.parse.quote(tmp_html.replace("\\", "/"), safe="/:")
-    cmd = [edge, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
-           "--print-to-pdf=" + tmp_pdf, url]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    if not os.path.exists(tmp_pdf):
-        sys.stderr.write(proc.stdout[-2000:] + proc.stderr[-2000:])
+    proc = run_browser(browser, url, tmp_pdf)
+    if not os.path.exists(tmp_pdf) or os.path.getsize(tmp_pdf) == 0:
+        sys.stderr.write("浏览器: {}\n".format(browser))
+        sys.stderr.write((proc.stdout[-2000:] if proc else "") + (proc.stderr[-2000:] if proc else ""))
         raise SystemExit("PDF 生成失败")
 
     os.replace(tmp_pdf, dest)

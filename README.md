@@ -17,6 +17,7 @@
 - [可以在指令里附加的要求](#可以在指令里附加的要求)
 - [目录结构](#目录结构)
 - [环境依赖](#环境依赖)
+- [Linux 部署（Ubuntu 22.04 / Debian 12）](#linux-部署ubuntu-2204--debian-12)
 - [考研真题语料库](#考研真题语料库)
 - [自定义与维护](#自定义与维护)
 - [排错速查](#排错速查)
@@ -147,28 +148,31 @@ assets/render_pdf.py  ──自动拼装──▶  临时 HTML（系统 temp 目
 ## 目录结构
 
 ```
-economist-intensive-reading\
+economist-intensive-reading/
 ├── SKILL.md                      技能主体：触发条件 + 工作流 + 质量红线
 ├── README.md                     本文件（给人看的）
-└── assets\
+├── .gitattributes                强制脚本用 LF（否则 .sh 到 Linux 会 bad interpreter）
+├── corpus/                       真题语料库，**随仓库分发**（pdf/ 原始 PDF + text/ 检索文本）
+└── assets/
     ├── lecture.css               讲义全部版式（颜色 / 字体 / 间距 / A4 分页）
     ├── render_pdf.py             .md 内容源 → 自动拼 HTML → A4 PDF（用完即删 HTML）
     ├── extract.py                PDF 取文本 / 渲染扫描件（text | render）
-    ├── build_kaoyan_corpus.py    下载考研真题 PDF 并抽文本，建本地语料库
+    ├── setup_linux.sh            Ubuntu 22.04 / Debian 12 一键装依赖
+    ├── build_kaoyan_corpus.py    下载考研真题 PDF 并抽文本，重建语料库（可选，仓库已自带）
     └── search_kaoyan_corpus.py   在语料库里模糊检索真题原句
 ```
 
 运行时会在**当前项目目录**下产生：
 
 ```
-<项目>\
-├── src\               内容源（<文章名>.md），**保留**，方便日后重渲染
-├── corpus\            真题语料库（pdf\ 原始文件 + text\ 抽出的文本）
-└── output\            成品，**只有 PDF**
+<项目>/
+├── src/               内容源（<文章名>.md），**保留**，方便日后重渲染
+├── corpus/            真题语料库（若没有，脚本会自动回退用技能自带的 corpus/）
+└── output/            成品，**只有 PDF**
 ```
 
 > **HTML 去哪了？** 智能体只写 `src/` 里的纯文本内容源；`render_pdf.py` 读它、拼上 `lecture.css`
-> 生成一份 HTML 放到系统 temp 目录，交给 Edge 打印成 PDF 后立即删除。因此项目和输出目录里
+> 生成一份 HTML 放到系统 temp 目录，交给 Chromium 系浏览器打印成 PDF 后立即删除。因此项目和输出目录里
 > 都不会出现 `.html`，中间产物也不参与对话 token 计费。
 
 ---
@@ -181,11 +185,11 @@ economist-intensive-reading\
 | 依赖 | 说明 |
 |---|---|
 | **Python** | 3.10+，建议独立 venv（开发机放在 WorkBuddy 的隔离环境里） |
-| **pymupdf** | `pip install pymupdf`，用于读 PDF / 渲染扫描件 |
-| **Microsoft Edge** | 无头模式打印 PDF；脚本会按 `Program Files (x86)` → `Program Files` → `PATH` 顺序自动探测（无 Chrome 也可用） |
-| **中文字体** | 讲义正文用系统自带中文字体（Windows: Microsoft YaHei / SimSun） |
+| **pymupdf** | `pip install pymupdf`，用于读 PDF / 渲染扫描件 / 生成预览图 |
+| **Chromium 系浏览器** | Edge / Chrome / Chromium **任意一个**即可（headless 打印参数完全一致）。探测顺序：`LECTURE_BROWSER` 环境变量 → Windows 常见路径 → macOS 常见路径 → Linux 常见路径 → `PATH` 里的命令名 → Playwright 缓存目录 |
+| **中文字体** | Windows / macOS 用系统自带；**Linux 必须装 `fonts-noto-cjk`**，否则讲义中文渲染成方框 |
 
-首次准备（只需一次）：
+Windows 首次准备（只需一次）：
 
 ```bash
 "C:/Users/Jrafina/.workbuddy/binaries/python/versions/3.13.12/python.exe" \
@@ -194,48 +198,85 @@ economist-intensive-reading\
 "C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/pip.exe" install pymupdf
 ```
 
+### Linux 部署（Ubuntu 22.04 / Debian 12）
+
+一键脚本，幂等可重复跑：
+
+```bash
+bash assets/setup_linux.sh
+```
+
+它做四件事：补齐 `python3-pip` → 装 `fonts-noto-cjk` → 装一个 Chromium 系浏览器 → 装 `pymupdf`，
+最后自检并打印实际用到的浏览器路径。
+
+手工装也很简单：
+
+```bash
+# Debian 12
+sudo apt update && sudo apt install -y chromium fonts-noto-cjk
+pip install pymupdf
+
+# Ubuntu 22.04 —— 注意：它的 chromium-browser 是 snap 包，容器 / 无 snapd 的环境装不上，
+# 所以推荐用 Playwright 自带的 Chromium（不依赖发行版打包，路径固定可预测）
+sudo apt update && sudo apt install -y fonts-noto-cjk
+pip install pymupdf playwright && playwright install --with-deps chromium
+```
+
+Linux 上只有两个真会踩的坑，脚本都已经处理：
+
+1. **中文字体**：不装 `fonts-noto-cjk`，讲义中文会渲染成方框（tofu）。
+   CSS 已按 `Noto Sans CJK SC → Noto Sans SC → Source Han Sans SC → WenQuanYi Micro Hei` 顺序回退。
+2. **沙箱与共享内存**：以 root 运行时（Docker / CI）Chromium 会拒绝启动，脚本检测到 `euid=0`
+   会自动加 `--no-sandbox`；同时固定加 `--disable-dev-shm-usage`，规避容器里 `/dev/shm` 过小导致的崩溃。
+
+另外脚本会先试 `--headless=new`，失败再回退老语法 `--headless`，所以老版 Chromium 也能用。
+也可以直接指定浏览器，绕过全部探测：
+
+```bash
+export LECTURE_BROWSER=/usr/bin/chromium      # 或 /opt/google/chrome/chrome
+```
+
 ---
 
 ## 考研真题语料库
 
 这是本技能**最核心的增值点**：词汇表的例句优先取自考研真题原文，而不是自编。
 
-### 为什么必须自建
+### 为什么必须用真题原文
 
 网上的「考研真题例句」（自媒体、内容农场）**大量是编造的** —— 连年份和 Text 号都是假的。
 例如会看到给 `conversely` 伪造一条"2024 英二完形"的句子。**不可引用二手转载。**
 
-### 数据来源
+### 数据来源与自带语料
 
-GitHub 仓库 `Fantasia1999/kaoyanzhenti`：
+来自 GitHub 仓库 `Fantasia1999/kaoyanzhenti`：英语一 1998 – 2026、英语二 2010 – 2026，
+**逐年独立 PDF**，所以年份能精确定位。
 
-- 英语一：1998 – 2026
-- 英语二：2010 – 2026
-- **逐年独立 PDF**，所以年份能精确定位
+**本仓库已内嵌其中 34 份**（英语一 2010–2026 + 英语二 2010–2026，约 51MB PDF + 0.9MB 文本），
+clone 下来直接就能检索，**不需要先建库**。想补 1998–2009 的英语一或更新年份，跑一次建库脚本即可。
 
 ### 用法
 
 ```bash
-PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"   # 换成你自己的 python
+PY=python3        # 换成你自己的 python
 
-# ① 建库：下载 + 抽文本（已存在的会自动跳过）
-#    默认输出到 ./corpus/，也可用环境变量指定别处：KAOYAN_CORPUS=/path/to/corpus
-"$PY" assets/build_kaoyan_corpus.py
-
-# ② 检索：默认跑脚本内置的目标词表（只覆盖历史文章用过的词）
+# ① 检索：默认跑脚本内置的目标词表（只覆盖历史文章用过的词）
 "$PY" assets/search_kaoyan_corpus.py > hits.txt
 
-# ③ ★ 换新文章时用这个：把该文的目标词与屈折形式写进 words.txt，每行一条
+# ② ★ 换新文章时用这个：把该文的目标词与屈折形式写进 words.txt，每行一条
 #    production
 #    quadruple=quadruple,quadrupled,quadrupling
 "$PY" assets/search_kaoyan_corpus.py @words.txt
 
 #    也可直接在命令行指定
 "$PY" assets/search_kaoyan_corpus.py wary=wary,wariness withhold
+
+# ③ 补齐 / 更新语料库（已存在的会自动跳过）
+"$PY" assets/build_kaoyan_corpus.py
 ```
 
-语料库位置默认取「当前工作目录下的 `corpus/text`」；从别处运行时可设
-`KAOYAN_CORPUS_TXT` 指向实际的 `corpus/text`。
+语料库查找顺序：环境变量 `KAOYAN_CORPUS_TXT`（检索）/ `KAOYAN_CORPUS`（建库）
+→ 当前工作目录下的 `corpus/` → 技能自带的 `corpus/`。
 
 ### 实测效果
 
@@ -278,6 +319,11 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 | 下载真题 `RemoteDisconnected` / `SSLEOFError` | `raw.githubusercontent.com` 连接不稳定。**直接重跑脚本**，已有文件会自动跳过 |
 | 某词检索不到真题 | 换更宽松的拼写变体，或确认该词真的是考研大纲词。实在没有就自写例句并标注 |
 | 表格/文字在 PDF 里被截断 | 检查对应元素是否有 `break-inside:avoid` |
+| **Linux**：`bad interpreter: /bin/bash^M` | `.sh` 被以 CRLF 检出。仓库有 `.gitattributes` 强制 LF；老工作区执行 `git rm --cached -r . && git reset --hard` 重新检出即可 |
+| **Linux**：找不到浏览器 | 跑 `bash assets/setup_linux.sh`；或 `export LECTURE_BROWSER=/usr/bin/chromium` 直接指定 |
+| **Linux**：讲义中文变成方框 | 缺 CJK 字体：`sudo apt install fonts-noto-cjk` |
+| **Linux**：Chromium 在 Docker 里一启动就退出 | 脚本已按 `euid=0` 自动加 `--no-sandbox`，并固定加 `--disable-dev-shm-usage`。若仍失败，检查容器 `/dev/shm` 是否过小 |
+| 老版 Chromium 不认 `--headless=new` | 脚本会自动回退到 `--headless`，无需干预 |
 
 ---
 
@@ -286,7 +332,8 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 - **扫描版 PDF 靠"看图"转录**，长文可能有零星笔误，交付前建议扫一眼原文。
 - **图表重绘是示意图**，只还原趋势，不还原精确数值（讲义里会明确标注"示意，非精确数值"）。
 - **考研例句覆盖率约 7 成**，剩下的词真题里确实没有该用法。
-- 真题语料库是**项目级**的（在项目目录的 `corpus/`）；换目录做讲义会重新下载一遍。
+- 真题语料库**随仓库分发**（34 份，英语一/二 2010–2026，约 51MB），clone 后在任意目录都能检索；
+  未收录 1998–2009 的英语一，需要时跑 `assets/build_kaoyan_corpus.py` 补齐。
 - **不产出 HTML 交付物**。智能体只写 `src/` 里的 `.md` 内容源（默认保留）；`.html` 是脚本的临时中间产物，渲染后即删。想调版式只改 `lecture.css` 重渲染，无需重写内容、也不再花 token。
 
 ---
@@ -295,4 +342,5 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 
 - 外刊原文版权归原作者 / The Economist 所有。
 - 考研真题版权归教育部考试中心所有。
+- `corpus/` 里的真题语料仅作本地检索索引随技能分发，请勿另行传播或用于商业用途。
 - 本技能生成的讲义**仅供个人英语学习使用**，请勿用于商业传播。

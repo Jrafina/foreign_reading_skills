@@ -59,14 +59,17 @@ agent_created: true
 
 例证优先级：**考研真题原句 > 按考研语域自写例句**。千万不要从内容农场/自媒体抄"真题例句"——那些大量是编造的（年份和 Text 号都是假的）。可靠做法是**自己从真题原文建本地语料库再检索**。
 
-**① 建库**（`assets/build_kaoyan_corpus.py`）
+**① 建库**（`assets/build_kaoyan_corpus.py`）—— **通常不用跑**，仓库已自带语料（见下）
 仓库：`Fantasia1999/kaoyanzhenti`（GitHub，英语一 1998–2026、英语二 2010–2026 逐年独立 PDF，可直接定位年份）。
 ```bash
-PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"   # Linux / macOS 用 python3
 "$PY" assets/build_kaoyan_corpus.py      # 下载到 corpus/pdf，抽文本到 corpus/text/<年>_<卷>.txt
 ```
-- 从 `raw.githubusercontent.com` 拉取**极易被重置连接**（`RemoteDisconnected` / `SSLEOFError`）；**失败的直接重跑**，已有 txt 会自动跳过。
-- 语料库默认建在**当前工作目录**下的 `corpus/`；从别处调用时用环境变量指定：建库 `KAOYAN_CORPUS`、检索 `KAOYAN_CORPUS_TXT`。目录不存在时脚本会直接报错提示，不会静默空转。
+- **仓库已内嵌 34 份**（英语一 2010–2026 + 英语二 2010–2026，约 51MB PDF + 0.9MB 文本），clone 后**直接检索即可**。
+  只有要补 1998–2009 的英语一或更新年份时才需要跑建库脚本（已存在的自动跳过）。
+- 语料库查找顺序：`KAOYAN_CORPUS`（建库）/ `KAOYAN_CORPUS_TXT`（检索）环境变量
+  → **当前工作目录**下的 `corpus/` → **技能自带的** `corpus/`。三处都没有时脚本直接报错提示，不会静默空转。
+- 从 `raw.githubusercontent.com` 拉取**极易被重置连接**（`RemoteDisconnected` / `SSLEOFError`）；**失败的直接重跑**。
 - 这些 PDF 是 **OCR 扫描版**，有明显错字（`unanimous`→`unammous`、`California`→`Califoria`）。**引用前必须人工校订**，含错字的句子不用。
 
 **② 检索**（`assets/search_kaoyan_corpus.py`）
@@ -113,9 +116,15 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 
 首次准备隔离环境（只需一次）：
 ```bash
+# Windows（本机 WorkBuddy 环境）
 "C:/Users/Jrafina/.workbuddy/binaries/python/versions/3.13.12/python.exe" -m venv "C:/Users/Jrafina/.workbuddy/binaries/python/envs/default"
 "C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/pip.exe" install pymupdf
+
+# Linux（Ubuntu 22.04 / Debian 12）：一条命令装齐浏览器 + 中文字体 + pymupdf
+bash assets/setup_linux.sh
 ```
+> 本机 Windows 用 Edge 打印；Linux 用 Chromium 系浏览器（Chromium / Chrome 任一），
+> 参数完全一致，`render_pdf.py` 会自动探测。详见 README 的「Linux 部署」一节。
 
 ### 第 2 步：写讲义源文件 `.md`
 
@@ -183,7 +192,7 @@ TRANS: 译文
 ```bash
 "$PY" assets/render_pdf.py src/<文章名>.md output/<输出名>.pdf
 ```
-- 脚本自己负责：生成临时 HTML → Edge headless 打印 → 输出 PDF → **删除临时 HTML**。
+- 脚本自己负责：生成临时 HTML → Chromium 系浏览器 headless 打印 → 输出 PDF → **删除临时 HTML**。
 - 加 `--preview` 会顺便导出逐页 PNG；加 `--keep-html` 才保留中间 HTML（**默认不要加**）。
 
 ### 第 4 步：自检（必做）
@@ -214,16 +223,21 @@ TRANS: 译文
 
 | 现象 | 原因 / 解法 |
 |---|---|
-| PDF 只有 1 页、内容是 `ERR_INVALID_URL` | 传给 Edge 的 `file://` URL 里混进了 Windows 反斜杠（被编码成 `%5C`）。脚本已用 `.replace("\\", "/")` 处理 |
+| PDF 只有 1 页、内容是 `ERR_INVALID_URL` | 传给浏览器的 `file://` URL 里混进了 Windows 反斜杠（被编码成 `%5C`）。脚本已用 `.replace("\\", "/")` 处理 |
 | `Failed to write file ... 拒绝访问 (0x5)` | `--print-to-pdf` 的**目标文件名必须是纯 ASCII**。脚本先输出到临时 ASCII 文件再 `os.replace` 成最终名 |
-| 找不到 Edge | 脚本按 `Program Files (x86)` → `Program Files` → PATH 顺序探测 |
-| Edge 输出 `QQBrowser` / `fallback_task_provider` 报错 | 噪声，忽略 |
+| 找不到浏览器 | 探测顺序：`LECTURE_BROWSER` 环境变量 → Windows 路径 → macOS 路径 → Linux 路径 → `PATH` 命令名（`chromium`/`google-chrome`/`microsoft-edge`…）→ Playwright 缓存目录。全无才报错，并按发行版给出安装命令 |
+| 浏览器输出 `QQBrowser` / `fallback_task_provider` 报错 | 噪声，忽略 |
 | 下载真题 `RemoteDisconnected` | `raw.githubusercontent.com` 不稳定，直接重跑脚本 |
 | 某词检索不到真题 | 放宽拼写变体，或确认它是否真是考研大纲词；没有就把第 5 字段写成 `own` |
 | 检索时全部输出"跳过" | 内置 `TARGETS` 只覆盖以往文章的词。换文章请用 `@words.txt` 或 `word=form1,form2` 现场指定词形，别去改脚本 |
 | 小标题与后文粘成一句（`Don't overdo itGeopolitics...`） | 原文小标题没包 `<span class="subhead">…</span>`。`.subhead` 已定义为 `display:block`，包上即独立成行，EN/ZH 都要包 |
 | 末页只剩一张卡片、大片空白 | 加小标题等多占一行后常见的临界溢出。按第 4 步的量化法逐步收紧 `@media print` 里的 `.sent`/`.para` 间距 |
 | 译文里的人名间隔号丢失 | 用 `&middot;`，不要直接敲 `·`（部分字体回退会吃掉） |
+| Linux：`bad interpreter: /bin/bash^M` | `.sh` 被以 CRLF 检出。仓库 `.gitattributes` 已强制 LF；老工作区跑 `git rm --cached -r . && git reset --hard` 重新检出 |
+| Linux：找不到浏览器 / 打印失败 | 先跑 `bash assets/setup_linux.sh`；或 `export LECTURE_BROWSER=/usr/bin/chromium` 直接指定 |
+| Linux：讲义中文渲染成方框 | 缺 CJK 字体，`sudo apt install fonts-noto-cjk`（CSS 已按 Noto Sans CJK → 思源 → 文泉驿顺序回退） |
+| Docker / CI 里 Chromium 一启动就退出 | 脚本已按 `euid=0` 自动加 `--no-sandbox`，并固定加 `--disable-dev-shm-usage`；仍失败就查容器 `/dev/shm` 是否过小 |
+| 老版 Chromium 不认 `--headless=new` | 脚本会自动回退 `--headless`；页眉页脚参数也同时传了新旧两种写法，无需处理 |
 
 ## 质量基准
 

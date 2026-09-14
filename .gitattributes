@@ -1,0 +1,12 @@
+# 换行符策略：脚本与文本一律 LF。
+# 否则在 Windows 上检出（core.autocrlf=true）后，.sh 到 Linux 会报 bad interpreter: /bin/bash^M
+*.sh  text eol=lf
+*.py  text eol=lf
+*.css text eol=lf
+*.md  text eol=lf
+*.txt text eol=lf
+
+# 二进制文件不做换行转换
+*.pdf binary
+*.png binary
+*.jpg binary

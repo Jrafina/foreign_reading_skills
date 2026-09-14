@@ -15,8 +15,24 @@ import pymupdf
 
 REPO = "Fantasia1999/kaoyanzhenti"
 BASE = "https://raw.githubusercontent.com/{}/HEAD/".format(REPO)
-# 语料库根目录：优先读环境变量 KAOYAN_CORPUS，否则用当前工作目录下的 corpus/
-ROOT = os.environ.get("KAOYAN_CORPUS") or os.path.join(os.getcwd(), "corpus")
+
+
+def _default_root():
+    """语料库根目录：优先当前工作目录下的 corpus/，其次用技能自带的 corpus/。
+
+    这样两种用法都对：在项目目录里跑用项目的语料库；
+    把技能 clone 到任意位置后直接跑，用仓库里自带的语料库。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(os.getcwd(), "corpus"),
+                 os.path.join(os.path.dirname(here), "corpus")):
+        if os.path.isdir(cand):
+            return cand
+    return os.path.join(os.getcwd(), "corpus")
+
+
+# 环境变量 KAOYAN_CORPUS 优先
+ROOT = os.environ.get("KAOYAN_CORPUS") or _default_root()
 PDF_DIR = os.path.join(ROOT, "pdf")
 TXT_DIR = os.path.join(ROOT, "text")
 

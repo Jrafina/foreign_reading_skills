@@ -7,7 +7,18 @@ import os
 import re
 import sys
 
-TXT_DIR = os.environ.get("KAOYAN_CORPUS_TXT") or os.path.join(os.getcwd(), "corpus", "text")
+def _default_txt_dir():
+    """语料库文本目录：优先当前工作目录下的 corpus/text，其次用技能自带的。"""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(os.getcwd(), "corpus", "text"),
+                 os.path.join(os.path.dirname(here), "corpus", "text")):
+        if os.path.isdir(cand):
+            return cand
+    return os.path.join(os.getcwd(), "corpus", "text")
+
+
+# 环境变量 KAOYAN_CORPUS_TXT 优先
+TXT_DIR = os.environ.get("KAOYAN_CORPUS_TXT") or _default_txt_dir()
 
 # 目标词 -> 需匹配的屈折形式（小写）
 TARGETS = {
