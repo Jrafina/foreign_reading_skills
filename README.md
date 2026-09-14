@@ -3,7 +3,7 @@
 把一篇《经济学人》等英文外刊文章，自动加工成一份**可直接打印的中文精读讲义**（A4 PDF）。
 词汇例句会去**考研真题原文**里找，而不是随手编造。
 
-> 示例产物：`C:\Users\Jrafina\Desktop\economist\output\Economist_精读_Moral_maths.pdf`（7 页）
+> 示例产物：`output/Economist_精读_Moral_maths.pdf`（7 页）
 > 源文：The Economist, 2026-09-05, United States, Page 21, *Moral maths*
 
 ---
@@ -26,13 +26,15 @@
 
 ## 这是什么
 
-一个**用户级工作流技能**，位于：
+一个**用户级工作流技能**，安装位置为 `~/.workbuddy/skills/economist-intensive-reading/`：
 
-```
-C:\Users\Jrafina\.workbuddy\skills\economist-intensive-reading\
+```bash
+git clone git@github.com:Jrafina/foreign_reading_skills.git \
+  ~/.workbuddy/skills/economist-intensive-reading
 ```
 
 因为放在 `~/.workbuddy/skills/` 下，它在**任何工作目录**都可用，不限于某个项目。
+仓库结构（`SKILL.md` + `assets/`）遵循通用 Skill 约定，同类技能可直接复用。
 
 **触发方式：自动。** 不需要手动调用 —— 只要你提供一篇英文外刊文章并表达"精读"类意图，它就会被匹配并接手。
 
@@ -173,12 +175,15 @@ economist-intensive-reading\
 
 ## 环境依赖
 
+> 下表中的路径是开发机上 WorkBuddy 内置环境的实际位置，**换机器请替换成自己的解释器路径**；
+> 脚本本身只用标准库 + `pymupdf`，不依赖任何 WorkBuddy 专有组件。
+
 | 依赖 | 说明 |
 |---|---|
-| **Python** | `C:\Users\Jrafina\.workbuddy\binaries\python\envs\default`（隔离环境） |
+| **Python** | 3.10+，建议独立 venv（开发机放在 WorkBuddy 的隔离环境里） |
 | **pymupdf** | `pip install pymupdf`，用于读 PDF / 渲染扫描件 |
-| **Microsoft Edge** | `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`，无头模式打印 PDF（本机无 Chrome） |
-| **中文字体** | Microsoft YaHei / SimSun（系统自带） |
+| **Microsoft Edge** | 无头模式打印 PDF；脚本会按 `Program Files (x86)` → `Program Files` → `PATH` 顺序自动探测（无 Chrome 也可用） |
+| **中文字体** | 讲义正文用系统自带中文字体（Windows: Microsoft YaHei / SimSun） |
 
 首次准备（只需一次）：
 
@@ -211,17 +216,26 @@ GitHub 仓库 `Fantasia1999/kaoyanzhenti`：
 ### 用法
 
 ```bash
-PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"   # 换成你自己的 python
 
 # ① 建库：下载 + 抽文本（已存在的会自动跳过）
+#    默认输出到 ./corpus/，也可用环境变量指定别处：KAOYAN_CORPUS=/path/to/corpus
 "$PY" assets/build_kaoyan_corpus.py
 
-# ② 检索：默认跑脚本内置的目标词表
+# ② 检索：默认跑脚本内置的目标词表（只覆盖历史文章用过的词）
 "$PY" assets/search_kaoyan_corpus.py > hits.txt
 
-#    也可以指定词
-"$PY" assets/search_kaoyan_corpus.py wary withhold
+# ③ ★ 换新文章时用这个：把该文的目标词与屈折形式写进 words.txt，每行一条
+#    production
+#    quadruple=quadruple,quadrupled,quadrupling
+"$PY" assets/search_kaoyan_corpus.py @words.txt
+
+#    也可直接在命令行指定
+"$PY" assets/search_kaoyan_corpus.py wary=wary,wariness withhold
 ```
+
+语料库位置默认取「当前工作目录下的 `corpus/text`」；从别处运行时可设
+`KAOYAN_CORPUS_TXT` 指向实际的 `corpus/text`。
 
 ### 实测效果
 
@@ -243,7 +257,7 @@ PY="C:/Users/Jrafina/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
 | 版式、颜色、字体、间距 | `assets/lecture.css`（改完重跑渲染即生效，**不用动内容源**） |
 | 内容源 `.md` 的块语法 | `assets/render_pdf.py` 的 `parse()` / `render_body()` |
 | 默认词汇条数 / 章节构成 | `SKILL.md` 的「产出结构」 |
-| 例句检索的目标词表 | `assets/search_kaoyan_corpus.py` 顶部的 `TARGETS` |
+| 例句检索的目标词表 | 新文章用 `words.txt` + `@words.txt` 传参（见上）；脚本顶部 `TARGETS` 只是历史文章用过的词形缓存 |
 | 扩语料库卷种 | `assets/build_kaoyan_corpus.py` 里的 `REPO` / `list_targets()` |
 
 **改完技能后**，下次生成讲义即生效，无需重启。
